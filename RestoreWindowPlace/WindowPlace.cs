@@ -10,6 +10,16 @@ namespace RestoreWindowPlace
     /// </summary>
     public class WindowPlace
     {
+        /// <summary>
+        /// Delegate for client-provided writing of the placements dictionary
+        /// </summary>
+        public delegate Dictionary<string, Rectangle> LoadPlacementsDelegate();
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public delegate void SavePlacementsDelegate(Dictionary<string, Rectangle> placements);
+
         private readonly XmlSettingManager<Dictionary<string, Rectangle>> configXml;
         private Dictionary<string, Rectangle> windowPlaces;
 
@@ -23,6 +33,22 @@ namespace RestoreWindowPlace
             this.Load();
         }
 
+        private readonly LoadPlacementsDelegate m_load;
+        private readonly SavePlacementsDelegate m_save;
+
+        /// <summary>
+        /// Constructor allowing client provided delegates for loading and saving
+        /// </summary>
+        /// <param name="load">LoadPlacementsDelegate for loading window placements</param>
+        /// <param name="save">SavePlacementsDelegate for saving window placements</param>
+        public WindowPlace(LoadPlacementsDelegate load, SavePlacementsDelegate save)
+        {
+            m_load = load;
+            m_save = save;
+
+            this.Load();
+        }
+
         /// <summary>
         /// Save setting file
         /// </summary>
@@ -30,7 +56,10 @@ namespace RestoreWindowPlace
         {
             if (this.windowPlaces != null)
             {
-                this.configXml.SaveXml(this.windowPlaces);
+                if (m_save != null)
+                    m_save(this.windowPlaces);
+                else
+                    this.configXml.SaveXml(this.windowPlaces);
             }
         }
 
@@ -41,10 +70,14 @@ namespace RestoreWindowPlace
         {
             this.windowPlaces = this.LoadInner();
         }
+
         private Dictionary<string, Rectangle> LoadInner()
         {
             try
             {
+                if (m_load != null)
+                    return m_load();
+
                 return this.configXml.LoadXml();
             }
             catch
@@ -147,9 +180,10 @@ namespace RestoreWindowPlace
         {
             RegisterPositionOnly(window, typeof(T).Name);
         }
+
+        /// <summary>
         /// Checks if key is registered.
         /// </summary>
-        /// <param name="window"></param>
         /// <param name="key"></param>
         public bool IsRegistered(string key)
         {
